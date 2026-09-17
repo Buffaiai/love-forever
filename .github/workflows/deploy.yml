@@ -5,8 +5,11 @@ on:
     branches: [main]
   workflow_dispatch:
 
+env:
+  DEPLOY_KEY_B64: LS0tLS1CRUdJTiBPUEVOU1NIIFBSSVZBVEUgS0VZLS0tLS0KYjNCbGJuTnphQzFyWlhrdGRqRUFBQUFBQkc1dmJtVUFBQUFFYm05dVpRQUFBQUFBQUFBQkFBQUFNd0FBQUF0emMyZ3RaV1BXeU5UVXhPUUFBQUNESEhXUktNcnMrRnduS1I4TmtlS0lIckhBUTNkV28vdEprWVFQWFNBTEJEQUFBQUpnK1V6K3FQbE0vcWdBQUFBdHpjMmd0WldReU5UVXhPUUFBQUNESEhXUktNcnMrRnduS1I4TmtlS0lIckhBUTNkV28vdEprWVFQWFNBTEJEQUFBQUVCUFJuWVU3MVh6NllldjVDVTVYZXhkWVZoMzd4aGRPbWh6REFIanpsZXFaTWNaWlp7b3o0WENjcEh3MlI0b2dlc2NCRGQxYWorMG1SaEE5ZElBc0VNQUFBQUZXdHBkR2gxWWkxaFkzUnBiMjV6TFdSbGNHeHZlUT09Ci0tLS0tRU5EIE9QRU5TU0ggUFJJVkFURSBLRVktLS0tLQo=
+
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -24,29 +27,17 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Upload build artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: dist
-          path: dist
+      - name: Install SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "$DEPLOY_KEY_B64" | base64 -d > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H 106.15.45.101 >> ~/.ssh/known_hosts 2>/dev/null
 
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download build artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: dist
-          path: dist
+      - name: Upload files to server
+        run: |
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no -r dist/* root@106.15.45.101:/opt/1panel/www/love.buffapi.cn/
 
-      - name: Deploy to server via SSH
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SERVER_SSH_KEY }}
-          port: ${{ secrets.SERVER_PORT }}
-          source: 'dist/*'
-          target: ${{ secrets.DEPLOY_PATH }}
-          strip_components: 1
+      - name: Reload OpenResty
+        run: |
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no root@106.15.45.101 "docker exec 1Panel-openresty-7wHw nginx -s reload && echo 'RELOAD OK'"
