@@ -21,6 +21,7 @@ function pad(n: number) {
 
 export default function Hero() {
   const [mounted, setMounted] = useState(false)
+  const [videoReady, setVideoReady] = useState(false)
   const [duration, setDuration] = useState(getLoveDuration())
 
   useEffect(() => {
@@ -42,16 +43,26 @@ export default function Hero() {
         className="absolute inset-0 transition-all duration-[1400ms]"
         style={{
           transitionTimingFunction: EASE_ENTRANCE,
-          opacity: mounted ? 1 : 0,
-          transform: mounted ? 'scale(1)' : 'scale(1.05)',
+          opacity: videoReady ? 1 : 0,
+          transform: videoReady ? 'scale(1)' : 'scale(1.05)',
         }}
       >
         <video
-          src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260819_212700_3bb9329b-5c50-4257-a09b-ca85cf3654a3.mp4"
+          src="/media/hero.mp4"
           autoPlay
           muted
           loop
           playsInline
+          preload="auto"
+          onCanPlay={() => setVideoReady(true)}
+          onDoubleClick={() => {
+            const el = document.documentElement
+            if (document.fullscreenElement) {
+              document.exitFullscreen()
+            } else {
+              el.requestFullscreen?.()
+            }
+          }}
           className="w-full h-full object-cover"
         />
       </div>
